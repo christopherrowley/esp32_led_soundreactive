@@ -29,20 +29,17 @@ arduinoFFT FFT = arduinoFFT();      // FFT object
 /* setup memory block for the leds */
 CRGB leds[NUM_LEDS];
 
-/* Variables for no bluetooth display */
-float globalHue;
-int globalBrightness = 200; // max value causes it to freeze. 
-float hueIncrement = 0.1; // change to 0 if you want no change
-int whiteSpacing = 20; // add some effect to the lights
-int modCheck = 0;
-
 struct averageCounter *samples;
 struct averageCounter *longTermSamples;
 struct averageCounter* sanityBuffer;
 
+float globalHue;
+float globalBrightness = 255;
+float SatVal = 255;
+float hueLedLngth = 0;
 int CENTER_VAL  = 1420;// 1820; // The value that ESP32 read_pin takes with no music
 float fadeScale = 1.2; // lower values slow the fade.
-boolean exceedSound = false; // for white flash
+float hueIncrement = 3; // 20% change in sound, shifts colour wheel by 20%
 
 // Wifi setup
 const char * ssid = "sound_reactive";
@@ -58,15 +55,14 @@ IPAddress subnet(255, 255, 0, 0);
 const char * udpAddress = "192.168.4.20";
 const int udpPort = 2390;
 const char * udpClientAdd = "192.168.4.30";
-
 //Are we currently connected?
 boolean connected = false;
-
 
 WiFiUDP udp;
 
 void setup() {
 
+  globalHue = 0;
   samples = new averageCounter(SAMPLE_SIZE);
   longTermSamples = new averageCounter(LONG_TERM_SAMPLES);
   sanityBuffer    = new averageCounter(BUFFER_SIZE);
@@ -82,7 +78,6 @@ void setup() {
   /* Setup Pin for LED data export */
   pinMode(READ_PIN, INPUT);
   pinMode(LED_PIN, OUTPUT);
-  Serial.print("Done Setup");
 
   delay(50);            // wait to get reference voltage stabilized
 }
@@ -92,8 +87,6 @@ void loop() {
     int analogRaw;
     analogReadResolution(32);
     analogRaw =analogRead(READ_PIN);
-
-    //Serial.println(analogRaw); 
 
     // ++ Sampling
     for(int i=0; i<SAMPLES; i++)
@@ -113,6 +106,7 @@ void loop() {
      int step = 1;
      int c=0;
 
+     //for(int i=0; i<(SAMPLES/2); i+=step)
      for(int i=0; i<3; i+=step) //C.R. shrink because we only care about small ones
      {
        data_avgs[c] = 0;
@@ -138,7 +132,6 @@ void loop() {
     udp.write(analogRaw8);
     udp.endPacket();
 
-    //Serial.println(analogRaw8); 
     soundReactive(analogRaw8); // C.R. commented out for debugging bluetooth...
 
 }
@@ -168,80 +161,52 @@ void soundReactive(int analogRaw) {
   int useVal = samples->computeAverage();                  // C.R. average over a smaller time, currently 1/10th the time
   longTermSamples->setSample(useVal);
 
-  Serial.println(longTermAverage);
+ 
+  // Start of Deciding colour of lights
+  // Slowly cycle through colours, and with big changes shift towards white
 
-  //////////////////////////////////////////////////////////
-  if (longTermAverage == 255) {
-    // no bluetooth input, so cycle through colours:
+  int diff = (useVal - longTermAverage);
+  if (diff > 120)  // If the difference between the two is large enough, change the colour. C.R. I may increase this value...
+  {
+    globalHue += hueIncrement; // Shift colour
 
-    modCheck += 1;
-    if (modCheck >= whiteSpacing){
-      modCheck = 0;
-    }
-            
-    /* Set the colour of lights and turn some off */
-    for (int i = 0; i < NUM_LEDS; i++)
+    SatVal -= 120; // White moves closer to 0
+    
+    if (globalHue > 255)
     {
-      if (i%whiteSpacing == modCheck){ 
-        leds[i] = CHSV(globalHue, 50, globalBrightness); // Set colours of leds to brighten
-      } else {
-        leds[i] = CHSV(globalHue, 255, globalBrightness); // Set colours of leds to brighten
-      }
-
-      globalHue += hueIncrement; // Shift colour
-      if (globalHue > 255){
-        globalHue -= 255;
-      } 
-    }
-
-    delay(250); // slow it down
-
-
-  } else {
-    // If the difference between the two is large enough, flash of white light
-    int diff = (useVal - longTermAverage);  
-    exceedSound = false;
-
-    if (diff > 100)  {
-      exceedSound = true;
-    }
-
-    /* Calculate how many LED's to light up */
-    int curshow = fscale(MIC_LOW, MIC_HIGH, 0.0, (float)NUM_LEDS, (float)useVal, 0);
-
-    /* Set the colour of lights and turn some off */
-    // Using a reverse fire colour - red - orange yellow white. 
-    // For HSV, = 0 to 64ish, so just use NUM_LEDS assuming 60.
-
-
-    for (int i = 0; i < NUM_LEDS; i++) {
-      if (exceedSound == true){
-
-        leds[i] = CRGB( 240, 240, 240); // white all the way up
-
-      } else {
-        if (i < curshow)  {
-
-          leds[i] = CHSV(i, 245-(2*i), 240); // dimmer as you go up
-
-        }
-        else    {
-
-          leds[i] = CRGB(leds[i].r / fadeScale, leds[i].g / fadeScale, leds[i].b / fadeScale);
-
-        }
-      }
-    }
-  }
-
-  delay(5);
-  FastLED.show();
-
-  // Hold the white light a bit longer
-  if (exceedSound == true){
-    delay(50);
+       globalHue -= 255;
+    } 
+    if (SatVal < 0)
+    {
+       SatVal = 0;
+    } 
+  } else if (SatVal < 255) // start to degrade the saturation value
+  {
+    SatVal += 5;
+    if (SatVal > 255)
+    {
+       SatVal = 255;
+    } 
   }
   
+  Serial.println(SatVal); // C.R. for debugging...
+
+  /* Calculate how many LED's to light up */
+  int curshow = fscale(MIC_LOW, MIC_HIGH, 0.0, (float)NUM_LEDS, (float)useVal, 0);
+
+  /* Set the colour of lights and turn some off */
+  for (int i = 0; i < NUM_LEDS; i++)
+  {
+    if (i <= curshow){
+      leds[i] = CHSV(globalHue, SatVal, 255); // Set colours of leds to brighten
+    }
+    // Then fade the rest
+    leds[i] = CRGB(leds[i].r / fadeScale, leds[i].g / fadeScale, leds[i].b / fadeScale);
+    
+  }
+  
+  delay(5);
+  FastLED.show();
 }
 
 

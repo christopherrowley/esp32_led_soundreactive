@@ -15,9 +15,16 @@ This also relies on a way to have your audio split so you can hear it and "see" 
 
 Overall this project took way longer than I thought it would, and hopefully this info will help the next person have a running head start. I went with the esp32 board thinking that I could use the bluetooth capabilities of the chip to receive the audio signal. After some reading, I think the chip uses the same antenna for WIFI and bluetooth, so I don't think it can do both simultaneously as I was hoping. Also, I wasn't able to figure out the bluetooth arduino a2dp code to get it to read in music from my phone. So I ended up cheating and just buying an audio bluetooth receiver for cheap to get the audio signal to the board.
 
-The basic breakdown is that the master LED contains the bluetooth module, inputs the audio, recenters it, performs an FFT, scales the value, then sends to the slave LED controllers via the wifi network it generates. Each LED then processes that value to determine how to adjust the lighting on the LED strip.
+# The basic breakdown:
+1. master LED contains the bluetooth module
+2. It inputs the audio,
+3. recenters it/removes offset
+4. performs an FFT
+5. scales the value
+6. then sends to the slave LED controllers via the wifi network it generates
+7. Each LED then processes that value to determine how to adjust the lighting on the LED strip.
 
-I use a DC offset for the audio signal, which should center the value on 512, except I am getting it centered around 1420 (see CENTER_VAL in master code). I didn't have time to figure out what's going on, so if you get bored, you can do that! Anyway, this seems to work by just changing the center_val to what it looks like.
+I use a DC offset for the audio signal, which should center the value on 512, except I am getting it centered around 1420 (see CENTER_VAL in master code). I didn't have time to figure out what's going on, so if you get bored, you can do that. Anyway, this seems to work by just changing the center_val to what it looks like.
 
 Also I have never had any training on circuit diagrams. I made the ones included to help me remember what goes where. Should be easy enough to figure out what to do from them.
 
@@ -32,3 +39,11 @@ X - 5V DC power supplies
 1 - bluetooth sound receiver
 
 and then anything else you want to style your lamps! (watch the first video link for how-to guide on that)
+
+
+## Software Setup:
+- download the arduino code from: www.arduino.cc
+- set up for ESP32 board using these instructions: https://randomnerdtutorials.com/installing-esp32-arduino-ide-2-0/ 
+- install fastLED library from https://github.com/FastLED/FastLED (in ardunino IDE -> tools -> manage libraries, search fastLED)
+- same as fastLED library, but for arduinoFFT
+- You might need to download a driver if you can't find your ESP32 board on a COM port (Windows - look at Device Manager). You can download driver here: https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers?tab=downloads
