@@ -11,7 +11,7 @@
 #define LED_PIN               4 // Where LED strip is connected to board
 #define NUM_LEDS             60
 #define MIC_LOW              15
-#define MIC_HIGH            255// C.R. need to figure out what the bluetooth sound goes up to...
+#define MIC_HIGH            255
 
 #define SAMPLE_SIZE           4 // Size to sample for music loudness
 #define LONG_TERM_SAMPLES    20 // Long term reference
@@ -26,7 +26,7 @@ struct averageCounter *longTermSamples;
 struct averageCounter* sanityBuffer;
 
 float globalHue;
-float globalBrightness = 255;
+float globalBrightness = 200;
 float hueLedLngth = 0;
 float fadeScale = 1.3;
 float hueIncrement = 20; // 20% change in sound, shifts colour wheel by 20%

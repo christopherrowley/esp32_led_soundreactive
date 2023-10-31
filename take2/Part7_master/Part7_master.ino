@@ -105,7 +105,6 @@ void loop() {
      int step = 1;
      int c=0;
 
-     //for(int i=0; i<(SAMPLES/2); i+=step)
      for(int i=0; i<3; i+=step) //C.R. shrink because we only care about small ones
      {
        data_avgs[c] = 0;
@@ -160,6 +159,8 @@ void soundReactive(int analogRaw) {
   int useVal = samples->computeAverage();                  // C.R. average over a smaller time, currently 1/10th the time
   longTermSamples->setSample(useVal);
 
+  //////////////////////////////////////////////////////////
+  // Here we might want a flash of white create a flag
   int diff = (useVal - longTermAverage);
   if (diff > 100)  // If the difference between the two is large enough, change the colour. C.R. I may increase this value...
   {
@@ -174,24 +175,16 @@ void soundReactive(int analogRaw) {
   int curshow = fscale(MIC_LOW, MIC_HIGH, 0.0, (float)NUM_LEDS, (float)useVal, 0);
 
   /* Set the colour of lights and turn some off */
+  // Using a reverse fire colour - red - orange yellow white. 
+  // For HSV, = 0 to 64ish, so just use NUM_LEDS assuming 60.
   for (int i = 0; i < NUM_LEDS; i++)
   {
-    if (i < curshow)
-    {
-      // HSV over 256, 60 lights, * by 4.3 to use full
-      hueLedLngth = globalHue + (i*4.3);
-
-      if (hueLedLngth > 255) // Shouldn't need to run, but just incase...
-      {
-        hueLedLngth -= 255;
-      }
-      leds[i] = CHSV(hueLedLngth, 255, 255);
+    if (i < curshow)  {
+      leds[i] = CHSV(i, 255-4*i, 255); // dimmer as you go up
     }
-    else
-    {
+    else    {
       leds[i] = CRGB(leds[i].r / fadeScale, leds[i].g / fadeScale, leds[i].b / fadeScale);
     }
-
   }
   delay(5);
   FastLED.show();
